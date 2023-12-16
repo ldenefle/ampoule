@@ -16,6 +16,7 @@ manifest:
           - cmsis
           - nanopb
           - hal_rpi_pico
+          - hal_nordic
     - name: ampoule-protos
       remote: ldenefle
       revision: main

@@ -5,4 +5,6 @@ zephyr_library_sources(
     command.c
 )
 
+zephyr_library_sources_ifdef(CONFIG_AMPOULE_TRANSPORT_SERIAL transports/serial.c)
+
 add_dependencies(ampoule ampoule_protos)

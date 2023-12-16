@@ -1,0 +1,9 @@
+sample:
+  description: Demonstration of the converge transport layer
+  name: Transport sample
+tests:
+  sample.subsys.transport:
+    tags: transport
+    filter: CONFIG_SERIAL and
+            CONFIG_UART_INTERRUPT_DRIVEN and
+            dt_chosen_enabled("ampoule,transport-serial")

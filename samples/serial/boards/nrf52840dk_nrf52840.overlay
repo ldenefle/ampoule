@@ -1,0 +1,5 @@
+/ {
+	chosen {
+		ampoule,transport-serial = &uart0;
+	};
+};
