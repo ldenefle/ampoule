@@ -11,3 +11,4 @@ manifest:
         name-allowlist:
           - cmsis
           - nanopb
+          - hal_rpi_pico
