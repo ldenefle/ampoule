@@ -1,7 +1,11 @@
 manifest:
+  group-filter:
+    - +optional
   remotes:
     - name: zephyrproject-rtos
       url-base: https://github.com/zephyrproject-rtos
+    - name: ldenefle
+      url-base: https://github.com/ldenefle
 
   projects:
     - name: zephyr
@@ -12,3 +16,7 @@ manifest:
           - cmsis
           - nanopb
           - hal_rpi_pico
+    - name: ampoule-protos
+      remote: ldenefle
+      revision: main
+      path: modules/lib/ampoule-protos

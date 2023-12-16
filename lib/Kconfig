@@ -2,3 +2,4 @@ config AMPOULE
     bool "Enables the ampoule library"
     default n
     select RING_BUFFER
+    select AMPOULE_PROTOS
