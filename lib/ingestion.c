@@ -9,14 +9,14 @@
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-// #include <logging/log.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
 #include <ampoule/ingestion.h>
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
-// LOG_MODULE_REGISTER(ingestion);
+LOG_MODULE_REGISTER(ingestion, CONFIG_AMPOULE_LOG_LVL);
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -55,6 +55,8 @@ int ingestion_feed(struct ingestion *ingestion, uint8_t *data, uint16_t len)
 
 	k_work_submit(&ingestion->ingest_work);
 
+    LOG_HEXDUMP_DBG(data, len, "Feed data");
+
 	return 0;
 }
 
@@ -85,7 +87,6 @@ static void ingestion_process(struct k_work *work)
 			ingestion->state = RCV_LENGTH_LOW;
 			k_work_schedule(&ingestion->timeout_work, K_MSEC(500));
 		}
-
 		break;
 		case RCV_LENGTH_LOW: {
 			uint8_t low;

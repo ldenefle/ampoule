@@ -14,3 +14,7 @@ config AMPOULE_TRANSPORT_SERIAL
 	select RING_BUFFER
 	help
 	  Enable serial backend.
+
+module = AMPOULE
+module-str = ampoule
+source "subsys/logging/Kconfig.template.log_config"
