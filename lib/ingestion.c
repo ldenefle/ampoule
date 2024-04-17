@@ -16,7 +16,7 @@
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
-LOG_MODULE_REGISTER(ingestion, CONFIG_AMPOULE_LOG_LVL);
+LOG_MODULE_REGISTER(ingestion, CONFIG_AMPOULE_LOG_LEVEL);
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
