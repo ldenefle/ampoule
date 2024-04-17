@@ -28,12 +28,16 @@ extern "C" {
 /******************************************************************************/
 /* External Typedefs                                                          */
 /******************************************************************************/
-typedef int (*on_data_cb)(uint8_t *data, uint16_t len);
-
 enum ingestion_state {
 	RCV_LENGTH_HIGH,
 	RCV_LENGTH_LOW,
 	RCV_DATA,
+    PARSING,
+};
+
+struct ingestion_transport {
+    /* Should return either an error either the size written */
+    int (*write)(void* context, uint8_t *data, uint16_t len);
 };
 
 struct ingestion {
@@ -49,8 +53,8 @@ struct ingestion {
 	uint16_t expected_size;
 	uint16_t bytes_read;
 
-	/* Observers list, can sub to packet received */
-	on_data_cb observer;
+    struct ingestion_transport * transport;
+    void * transport_context;
 };
 
 /******************************************************************************/
@@ -65,7 +69,7 @@ struct ingestion {
  * @params <++>
  * @return <++>
  */
-int ingestion_init(struct ingestion *ingestion, on_data_cb cb);
+int ingestion_init(struct ingestion *ingestion, struct ingestion_transport * transport, void * context);
 
 int ingestion_feed(struct ingestion *ingestion, uint8_t *data, uint16_t len);
 

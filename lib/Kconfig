@@ -15,6 +15,12 @@ config AMPOULE_TRANSPORT_SERIAL
 	help
 	  Enable serial backend.
 
+if AMPOULE
+    config AMPOULE_INGESTION_TIMEOUT_MS
+        int "Timeout in ms before buffer is flushed"
+        default 500
+endif
+
 module = AMPOULE
 module-str = ampoule
 source "subsys/logging/Kconfig.template.log_config"

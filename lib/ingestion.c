@@ -10,8 +10,14 @@
 /* Includes                                                                   */
 /******************************************************************************/
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
+
+#include "pb_decode.h"
+#include "pb_encode.h"
+
 #include <ampoule/ingestion.h>
+#include "ampoule/command.h"
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -31,12 +37,10 @@ static void ingestion_timeout(struct k_work *work);
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-int ingestion_init(struct ingestion *ingestion, on_data_cb cb)
+int ingestion_init(struct ingestion *ingestion, struct ingestion_transport * transport, void * context)
 {
-	if (cb == NULL) {
-		return -EINVAL;
-	}
-	ingestion->observer = cb;
+    ingestion->transport = transport;
+    ingestion->transport_context = context;
 
 	ingestion->bytes_read = 0;
 	ingestion->state = RCV_LENGTH_HIGH;
@@ -72,6 +76,53 @@ static void ingestion_timeout(struct k_work *work)
 	ingestion->state = RCV_LENGTH_HIGH;
 }
 
+static int ingestion_parse(struct ingestion * ingestion, uint8_t *data, uint16_t len) {
+    int ret;
+    bool status;
+    uint8_t output[512];
+    Command command;
+    Response response;
+
+    pb_istream_t istream = pb_istream_from_buffer(data, len);
+
+    status = pb_decode(&istream, Command_fields, &command);
+    if (!status)
+    {
+        return -EINVAL;
+    }
+
+    ret = command_process(&command, &response);
+    if (ret != 0)
+    {
+        return -EINVAL;
+    }
+
+    pb_ostream_t ostream = pb_ostream_from_buffer(&output[2], sizeof(output) - sizeof(uint16_t));
+    status = pb_encode(&ostream, Response_fields, &response);
+    if (!status)
+    {
+        return -EINVAL;
+    }
+
+
+    uint16_t bytes_to_write = ostream.bytes_written;
+    sys_put_be16(bytes_to_write, &output[0]);
+
+    bytes_to_write += sizeof(uint16_t);
+
+    int bytes_written = 0;
+
+    do {
+        ret =  ingestion->transport->write(ingestion->transport_context, &output[bytes_written], bytes_to_write - bytes_written);
+        if (ret < 0) {
+            break;
+        }
+        bytes_written += ret;
+    } while (bytes_written < bytes_to_write);
+
+    return 0;
+}
+
 static void ingestion_process(struct k_work *work)
 {
 	struct ingestion *ingestion = CONTAINER_OF(work, struct ingestion, ingest_work);
@@ -85,7 +136,7 @@ static void ingestion_process(struct k_work *work)
 			__ASSERT_NO_MSG(rc == 1);
 			ingestion->expected_size = high << 8;
 			ingestion->state = RCV_LENGTH_LOW;
-			k_work_schedule(&ingestion->timeout_work, K_MSEC(500));
+			k_work_schedule(&ingestion->timeout_work, K_MSEC(CONFIG_AMPOULE_INGESTION_TIMEOUT_MS));
 		}
 		break;
 		case RCV_LENGTH_LOW: {
@@ -98,15 +149,26 @@ static void ingestion_process(struct k_work *work)
 
 		break;
 		case RCV_DATA: {
-			uint8_t *data;
-			rc = ring_buf_get_claim(&ingestion->rb, &data, ingestion->expected_size);
-			if (rc == ingestion->expected_size) {
-				ingestion->observer(data, ingestion->expected_size);
-				ring_buf_get_finish(&ingestion->rb, ingestion->expected_size);
-				ingestion->state = RCV_LENGTH_HIGH;
+            k_sleep(K_MSEC(1));
+
+            if (ring_buf_size_get(&ingestion->rb) >= ingestion->expected_size)
+            {
+                ingestion->state = PARSING;
 				k_work_cancel_delayable(&ingestion->timeout_work);
-			}
+                k_work_submit(&ingestion->ingest_work);
+                return;
+            }
 		} break;
+        case PARSING: {
+            uint8_t * data;
+            rc = ring_buf_get_claim(&ingestion->rb, &data, ingestion->expected_size);
+            ingestion_parse(ingestion, data, rc);
+
+            ring_buf_get_finish(&ingestion->rb, ingestion->expected_size);
+            ingestion->state = RCV_LENGTH_HIGH;
+        }
+        break;
 		}
 	} while (ring_buf_size_get(&ingestion->rb) != 0);
 }
+
