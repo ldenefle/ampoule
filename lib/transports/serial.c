@@ -25,11 +25,10 @@
 
 static const struct device *uart_dev = DEVICE_DT_GET(SERIAL_DEVICE);
 
-
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-int send_tx(void* context, uint8_t * data, uint16_t len);
+int send_tx(void *context, uint8_t *data, uint16_t len);
 
 /******************************************************************************/
 /* Local Variable Definitions                                                 */
@@ -42,37 +41,37 @@ RING_BUF_DECLARE(tx_ring, 1024);
 
 static struct ingestion ingestion;
 static struct ingestion_transport transport = {
-    .write = send_tx,
+	.write = send_tx,
 };
 
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-int send_tx(void* context, uint8_t * data, uint16_t len) {
-    uint8_t *output;
-    uint16_t bytes_written;
+int send_tx(void *context, uint8_t *data, uint16_t len)
+{
+	uint8_t *output;
+	uint16_t bytes_written;
 
-    bytes_written = ring_buf_put_claim(&tx_ring, &output, len);
-    if (bytes_written < 0)
-    {
-        return -ENOMEM;
-    }
+	bytes_written = ring_buf_put_claim(&tx_ring, &output, len);
+	if (bytes_written < 0) {
+		return -ENOMEM;
+	}
 
-    memcpy(output, data, bytes_written);
+	memcpy(output, data, bytes_written);
 
-    int rc = ring_buf_put_finish(&tx_ring, bytes_written);
-    if (rc < 0 ) {
-        return rc;
-    }
+	int rc = ring_buf_put_finish(&tx_ring, bytes_written);
+	if (rc < 0) {
+		return rc;
+	}
 
-    uart_irq_tx_enable(uart_dev);
+	uart_irq_tx_enable(uart_dev);
 
-    return bytes_written;
+	return bytes_written;
 }
 
 void serial_cb(const struct device *dev, void *user_data)
 {
-    uint8_t buffer[64];
+	uint8_t buffer[64];
 	ARG_UNUSED(user_data);
 
 	while (uart_irq_update(dev) && uart_irq_is_pending(dev)) {
@@ -82,7 +81,7 @@ void serial_cb(const struct device *dev, void *user_data)
 				recv_len = 0;
 			};
 
-            ingestion_feed(&ingestion, buffer, recv_len);
+			ingestion_feed(&ingestion, buffer, recv_len);
 		}
 
 		if (uart_irq_tx_ready(dev)) {
@@ -105,11 +104,11 @@ int ampoule_serial_init(void)
 		return -ENODEV;
 	}
 
-    ingestion_init(&ingestion, &transport, NULL);
+	ingestion_init(&ingestion, &transport, NULL);
 
 	uart_irq_callback_user_data_set(uart_dev, serial_cb, NULL);
 	uart_irq_rx_enable(uart_dev);
-    return 0;
+	return 0;
 }
 
 SYS_INIT(ampoule_serial_init, APPLICATION, 0);

@@ -37,10 +37,17 @@ static void ingestion_timeout(struct k_work *work);
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-int ingestion_init(struct ingestion *ingestion, struct ingestion_transport * transport, void * context)
+int ingestion_init(struct ingestion *ingestion, struct ingestion_transport *transport,
+		   struct ingestion_rpc *rpc, void *context)
 {
-    ingestion->transport = transport;
-    ingestion->transport_context = context;
+	if (transport == NULL || rpc == NULL) {
+		return -EINVAL;
+	}
+
+	ingestion->transport = transport;
+	ingestion->transport_context = context;
+
+	ingestion->rpc = rpc;
 
 	ingestion->bytes_read = 0;
 	ingestion->state = RCV_LENGTH_HIGH;
@@ -59,7 +66,7 @@ int ingestion_feed(struct ingestion *ingestion, uint8_t *data, uint16_t len)
 
 	k_work_submit(&ingestion->ingest_work);
 
-    LOG_HEXDUMP_DBG(data, len, "Feed data");
+	LOG_HEXDUMP_DBG(data, len, "Feed data");
 
 	return 0;
 }
@@ -76,51 +83,51 @@ static void ingestion_timeout(struct k_work *work)
 	ingestion->state = RCV_LENGTH_HIGH;
 }
 
-static int ingestion_parse(struct ingestion * ingestion, uint8_t *data, uint16_t len) {
-    int ret;
-    bool status;
-    uint8_t output[512];
-    Command command;
-    Response response;
+static int ingestion_parse(struct ingestion *ingestion, uint8_t *data, uint16_t len)
+{
+	int ret;
+	bool status;
+	uint8_t output[512];
+	Command command;
+	Response response;
 
-    pb_istream_t istream = pb_istream_from_buffer(data, len);
+	pb_istream_t istream = pb_istream_from_buffer(data, len);
 
-    status = pb_decode(&istream, Command_fields, &command);
-    if (!status)
-    {
-        return -EINVAL;
-    }
+	status = pb_decode(&istream, Command_fields, &command);
+	if (!status) {
+		return -EINVAL;
+	}
 
-    ret = command_process(&command, &response);
-    if (ret != 0)
-    {
-        return -EINVAL;
-    }
+	ret = ingestion->rpc->on_command(&command, &response);
+	if (ret != 0) {
+		return -EINVAL;
+	}
 
-    pb_ostream_t ostream = pb_ostream_from_buffer(&output[2], sizeof(output) - sizeof(uint16_t));
-    status = pb_encode(&ostream, Response_fields, &response);
-    if (!status)
-    {
-        return -EINVAL;
-    }
+	pb_ostream_t ostream =
+		pb_ostream_from_buffer(&output[2], sizeof(output) - sizeof(uint16_t));
+	status = pb_encode(&ostream, Response_fields, &response);
+	if (!status) {
+		return -EINVAL;
+	}
 
+	uint16_t bytes_to_write = ostream.bytes_written;
+	sys_put_be16(bytes_to_write, &output[0]);
 
-    uint16_t bytes_to_write = ostream.bytes_written;
-    sys_put_be16(bytes_to_write, &output[0]);
+	bytes_to_write += sizeof(uint16_t);
 
-    bytes_to_write += sizeof(uint16_t);
+	int bytes_written = 0;
 
-    int bytes_written = 0;
+	do {
+		ret = ingestion->transport->write(ingestion->transport_context,
+						  &output[bytes_written],
+						  bytes_to_write - bytes_written);
+		if (ret < 0) {
+			break;
+		}
+		bytes_written += ret;
+	} while (bytes_written < bytes_to_write);
 
-    do {
-        ret =  ingestion->transport->write(ingestion->transport_context, &output[bytes_written], bytes_to_write - bytes_written);
-        if (ret < 0) {
-            break;
-        }
-        bytes_written += ret;
-    } while (bytes_written < bytes_to_write);
-
-    return 0;
+	return 0;
 }
 
 static void ingestion_process(struct k_work *work)
@@ -136,9 +143,9 @@ static void ingestion_process(struct k_work *work)
 			__ASSERT_NO_MSG(rc == 1);
 			ingestion->expected_size = high << 8;
 			ingestion->state = RCV_LENGTH_LOW;
-			k_work_schedule(&ingestion->timeout_work, K_MSEC(CONFIG_AMPOULE_INGESTION_TIMEOUT_MS));
-		}
-		break;
+			k_work_schedule(&ingestion->timeout_work,
+					K_MSEC(CONFIG_AMPOULE_INGESTION_TIMEOUT_MS));
+		} break;
 		case RCV_LENGTH_LOW: {
 			uint8_t low;
 			rc = ring_buf_get(&ingestion->rb, &low, sizeof(uint8_t));
@@ -149,26 +156,23 @@ static void ingestion_process(struct k_work *work)
 
 		break;
 		case RCV_DATA: {
-            k_sleep(K_MSEC(1));
+			k_sleep(K_MSEC(1));
 
-            if (ring_buf_size_get(&ingestion->rb) >= ingestion->expected_size)
-            {
-                ingestion->state = PARSING;
+			if (ring_buf_size_get(&ingestion->rb) >= ingestion->expected_size) {
+				ingestion->state = PARSING;
 				k_work_cancel_delayable(&ingestion->timeout_work);
-                k_work_submit(&ingestion->ingest_work);
-                return;
-            }
+				k_work_submit(&ingestion->ingest_work);
+				return;
+			}
 		} break;
-        case PARSING: {
-            uint8_t * data;
-            rc = ring_buf_get_claim(&ingestion->rb, &data, ingestion->expected_size);
-            ingestion_parse(ingestion, data, rc);
+		case PARSING: {
+			uint8_t *data;
+			rc = ring_buf_get_claim(&ingestion->rb, &data, ingestion->expected_size);
+			ingestion_parse(ingestion, data, rc);
 
-            ring_buf_get_finish(&ingestion->rb, ingestion->expected_size);
-            ingestion->state = RCV_LENGTH_HIGH;
-        }
-        break;
+			ring_buf_get_finish(&ingestion->rb, ingestion->expected_size);
+			ingestion->state = RCV_LENGTH_HIGH;
+		} break;
 		}
 	} while (ring_buf_size_get(&ingestion->rb) != 0);
 }
-

@@ -9,7 +9,7 @@ DT_CHOSEN_AMP_SERIAL := ampoule,transport-serial
 config AMPOULE_TRANSPORT_SERIAL
 	bool "Serial backend"
 	default "$(dt_chosen_enabled,$(DT_CHOSEN_AMP_SERIAL))" if HAS_DTS
-	default y if !HAS_DTS
+	default n if !HAS_DTS
 	select SERIAL
 	select RING_BUFFER
 	help

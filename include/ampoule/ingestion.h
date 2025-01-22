@@ -19,6 +19,8 @@ extern "C" {
 #include "zephyr/kernel.h"
 #include "zephyr/sys/ring_buffer.h"
 
+#include "command.pb.h"
+
 /******************************************************************************/
 /* Global Definitions/Macros                                                  */
 /******************************************************************************/
@@ -32,12 +34,16 @@ enum ingestion_state {
 	RCV_LENGTH_HIGH,
 	RCV_LENGTH_LOW,
 	RCV_DATA,
-    PARSING,
+	PARSING,
 };
 
 struct ingestion_transport {
-    /* Should return either an error either the size written */
-    int (*write)(void* context, uint8_t *data, uint16_t len);
+	/* Should return either an error either the size written */
+	int (*write)(void *context, uint8_t *data, uint16_t len);
+};
+
+struct ingestion_rpc {
+	int (*on_command)(Command *command, Response *response);
 };
 
 struct ingestion {
@@ -53,8 +59,10 @@ struct ingestion {
 	uint16_t expected_size;
 	uint16_t bytes_read;
 
-    struct ingestion_transport * transport;
-    void * transport_context;
+	struct ingestion_transport *transport;
+	struct ingestion_rpc *rpc;
+
+	void *transport_context;
 };
 
 /******************************************************************************/
@@ -66,11 +74,18 @@ struct ingestion {
 /******************************************************************************/
 /**
  * @brief Initialise an ingestion object
- * @params <++>
- * @return <++>
+ * @params [in] transport - pointer to the transport struct
+ * @params [in] rpc - pointer to the rpc struct
+ * @return [in] context - void pointer that will be passed to transport
  */
-int ingestion_init(struct ingestion *ingestion, struct ingestion_transport * transport, void * context);
+int ingestion_init(struct ingestion *ingestion, struct ingestion_transport *transport,
+		   struct ingestion_rpc *rpc, void *context);
 
+/**
+ * @brief Feeds chunk to the ingestion layer
+ * @params [in] data - pointer to the chunk
+ * @return [in] len - length of the chunk
+ */
 int ingestion_feed(struct ingestion *ingestion, uint8_t *data, uint16_t len);
 
 #ifdef __cplusplus
