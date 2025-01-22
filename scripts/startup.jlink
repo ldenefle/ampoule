@@ -1,0 +1,10 @@
+power on
+device NRF52840_XXAA
+if swd
+speed auto
+connect
+loadfile build/zephyr/zephyr_rtt.hex
+halt
+reset
+go
+
