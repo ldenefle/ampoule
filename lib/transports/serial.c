@@ -44,6 +44,10 @@ static struct ingestion_transport transport = {
 	.write = send_tx,
 };
 
+static struct ingestion_rpc rpc = {
+    .on_command = command_process,
+};
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
@@ -104,7 +108,7 @@ int ampoule_serial_init(void)
 		return -ENODEV;
 	}
 
-	ingestion_init(&ingestion, &transport, NULL);
+	ingestion_init(&ingestion, &transport, &rpc, NULL);
 
 	uart_irq_callback_user_data_set(uart_dev, serial_cb, NULL);
 	uart_irq_rx_enable(uart_dev);
