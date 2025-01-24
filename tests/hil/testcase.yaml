@@ -1,0 +1,4 @@
+tests:
+  hil.ingestion:
+    harness: pytest
+
