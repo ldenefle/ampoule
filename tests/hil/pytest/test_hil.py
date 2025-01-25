@@ -1,8 +1,6 @@
-import pytest
 import time
 import logging
 
-from twister_harness import DeviceAdapter
 import serial
 
 logger = logging.getLogger(__name__)
@@ -11,17 +9,34 @@ logger = logging.getLogger(__name__)
 PING = bytearray([0, 2, 8, 1])
 PONG = bytearray([0, 2, 8, 2])
 
-@pytest.fixture()
-def port(dut: DeviceAdapter):
-    # Don't use the dut as it manipulates the data
-    dut.close()
+def test_protocol_should_pong_a_ping(port: serial.Serial):
+    port.write(PING)
 
-    # Grab the serial port and run with it with 1s timeout
-    dut.base_timeout = 1
-    dut._connect_device()
-    yield dut._serial_connection
+    resp = port.read(len(PONG))
 
-def test_ping_should_pong(port: serial.Serial):
+    assert resp == PONG
+
+def test_protocol_should_handle_partial_packets(port: serial.Serial):
+    # Transmits partial packets
+    port.write(PING[:2])
+    port.flush()
+    port.write(PING[2:])
+
+    resp = port.read(len(PONG))
+
+    assert resp == PONG
+
+def test_protocol_should_recover_after_lost_packet(port: serial.Serial):
+    # Transmits partial packets
+    port.write(PING[:2])
+
+    resp = port.read(len(PONG))
+
+    assert len(resp) == 0
+
+    # Wait a bit for recovery
+    time.sleep(0.1)
+
     port.write(PING)
 
     resp = port.read(len(PONG))

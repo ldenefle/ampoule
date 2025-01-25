@@ -1,4 +1,5 @@
 tests:
   hil.ingestion:
+    platform_allow: nrf52840dk/nrf52840
     harness: pytest
 
