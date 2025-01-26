@@ -9,15 +9,21 @@
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
+#include "command.pb.h"
+#include "errno.h"
 #include "ampoule/command.h"
+#include "zephyr/logging/log.h"
+#include "zephyr/drivers/gpio.h"
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
+LOG_MODULE_REGISTER(command, CONFIG_AMPOULE_LOG_LEVEL);
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
+#define LED0_NODE DT_ALIAS(led0)
 
 /******************************************************************************/
 /* Local Variable Definitions                                                 */
@@ -30,18 +36,57 @@
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-int command_process(Command *command, Response *response)
+int command_handle_led(ampoule_Command *command, ampoule_Response *response)
 {
-	int rc;
+#if !DT_NODE_EXISTS(LED0_NODE)
+	return -ENOSYS;
+#else
 
-	switch (command->opcode) {
-	case Opcode_PING:
-		response->opcode = Opcode_PONG;
-		rc = 0;
+	int rc = 0;
+	ampoule_Led *led = &command->operation.led;
+
+	const struct gpio_dt_spec dev = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+
+	if (!gpio_is_ready_dt(&dev)) {
+		return -EIO;
+	}
+
+	rc = gpio_pin_configure_dt(&dev, GPIO_OUTPUT_ACTIVE);
+	if (rc < 0) {
+		return rc;
+	}
+
+	switch (led->color) {
+	case ampoule_Led_Color_WHITE:
+		gpio_pin_set_dt(&dev, 1);
 		break;
-	default:
+	case ampoule_Led_Color_OFF:
+		gpio_pin_set_dt(&dev, 0);
 		break;
 	}
+
+	return 0;
+#endif
+}
+
+int command_process(ampoule_Command *command, ampoule_Response *response)
+{
+	int rc = 0;
+
+	switch (command->opcode) {
+	case ampoule_Opcode_PING:
+		response->opcode = ampoule_Opcode_PONG;
+		break;
+	case ampoule_Opcode_SET_LED:
+		response->opcode = ampoule_Opcode_SET_LED;
+		rc = command_handle_led(command, response);
+		break;
+	default:
+		rc = -ENOSYS;
+		break;
+	}
+
+	response->success = rc == 0;
 
 	return rc;
 }

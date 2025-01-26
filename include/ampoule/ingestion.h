@@ -43,7 +43,7 @@ struct ingestion_transport {
 };
 
 struct ingestion_rpc {
-	int (*on_command)(Command *command, Response *response);
+	int (*on_command)(ampoule_Command *command, ampoule_Response *response);
 };
 
 struct ingestion {

@@ -3,6 +3,7 @@ config AMPOULE
     default n
     select RING_BUFFER
     select AMPOULE_PROTOS
+    select GPIO
 
 DT_CHOSEN_AMP_SERIAL := ampoule,transport-serial
 

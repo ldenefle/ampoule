@@ -45,7 +45,7 @@ static struct ingestion_transport transport = {
 };
 
 static struct ingestion_rpc rpc = {
-    .on_command = command_process,
+	.on_command = command_process,
 };
 
 /******************************************************************************/

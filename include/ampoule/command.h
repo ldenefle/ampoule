@@ -38,7 +38,7 @@ extern "C" {
  * @params <++>
  * @return <++>
  */
-int command_process(Command *command, Response *response);
+int command_process(ampoule_Command *command, ampoule_Response *response);
 
 #ifdef __cplusplus
 }

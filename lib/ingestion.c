@@ -88,24 +88,21 @@ static int ingestion_parse(struct ingestion *ingestion, uint8_t *data, uint16_t 
 	int ret;
 	bool status;
 	uint8_t output[512];
-	Command command;
-	Response response;
+	ampoule_Command command;
+	ampoule_Response response;
 
 	pb_istream_t istream = pb_istream_from_buffer(data, len);
 
-	status = pb_decode(&istream, Command_fields, &command);
+	status = pb_decode(&istream, ampoule_Command_fields, &command);
 	if (!status) {
 		return -EINVAL;
 	}
 
-	ret = ingestion->rpc->on_command(&command, &response);
-	if (ret != 0) {
-		return -EINVAL;
-	}
+	ingestion->rpc->on_command(&command, &response);
 
 	pb_ostream_t ostream =
 		pb_ostream_from_buffer(&output[2], sizeof(output) - sizeof(uint16_t));
-	status = pb_encode(&ostream, Response_fields, &response);
+	status = pb_encode(&ostream, ampoule_Response_fields, &response);
 	if (!status) {
 		return -EINVAL;
 	}

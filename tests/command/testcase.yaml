@@ -1,4 +1,8 @@
+common:
+  platform_allow:
+    - qemu_x86
+    - native_sim
+    - nrf52840dk/nrf52840
+  tags: command
 tests:
-  command.host:
-    platform_allow: qemu_x86 native_sim nrf52840dk/nrf52840
-    tags: command
+  command.host: {}

@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 # TODO: Creation should be more dynamic here
 PING = bytearray([0, 2, 8, 1])
-PONG = bytearray([0, 2, 8, 2])
+PONG = bytearray([0, 4, 8, 2, 16, 1])
 
 def test_protocol_should_pong_a_ping(port: serial.Serial):
     port.write(PING)

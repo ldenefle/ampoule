@@ -21,7 +21,7 @@
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static int on_command(Command *command, Response *response);
+static int on_command(ampoule_Command *command, ampoule_Response *response);
 static int on_write(void *context, uint8_t *data, uint16_t len);
 
 /******************************************************************************/
@@ -36,7 +36,7 @@ static struct ingestion_transport fake_transport = {.write = on_write};
 
 static struct ingestion_rpc fake_rpc = {.on_command = on_command};
 
-static Command received;
+static ampoule_Command received;
 
 static uint8_t valid_packet[100];
 static uint32_t valid_packet_len;
@@ -55,13 +55,13 @@ static int on_write(void *context, uint8_t *data, uint16_t len)
 	return len;
 }
 
-static int on_command(Command *command, Response *response)
+static int on_command(ampoule_Command *command, ampoule_Response *response)
 {
 	/* Buffers command received */
-	memcpy(command, &received, sizeof(Command));
+	memcpy(command, &received, sizeof(ampoule_Command));
 
 	/* Only responds pong */
-	response->opcode = Opcode_PONG;
+	response->opcode = ampoule_Opcode_PONG;
 
 	/* Cache our reception */
 	rpc_received = true;
@@ -77,19 +77,19 @@ static void before(void *fixture)
 	cb_data_len = 0;
 
 	/* Reset the rpc stubs */
-	memset(&received, 0, sizeof(Command));
+	memset(&received, 0, sizeof(ampoule_Command));
 	rpc_received = true;
 
 	/* Initialise the ingestion */
 	zassert_ok(ingestion_init(&ingestion, &fake_transport, &fake_rpc, NULL));
 
 	/* Prepare a valid packet to be used to test ingestion */
-	Command ping = {.opcode = Opcode_PING};
+	ampoule_Command ping = {.opcode = ampoule_Opcode_PING};
 
 	pb_ostream_t ostream = pb_ostream_from_buffer(&valid_packet[sizeof(uint16_t)],
 						      sizeof(valid_packet) - sizeof(uint16_t));
 
-	zassert_true(pb_encode(&ostream, Command_fields, &ping));
+	zassert_true(pb_encode(&ostream, ampoule_Command_fields, &ping));
 
 	/* Write size in our packet*/
 	sys_put_be16(ostream.bytes_written, &valid_packet[0]);
