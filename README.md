@@ -6,6 +6,41 @@ It comes with two other projects:
 + [its proto dependencies](https://github.com/ldenefle/ampoule-protos)
 + [its example client implementation](https://github.com/ldenefle/ampoule-cli)
 
+
+
+## Architecture
+
+An ingestion engine gets fed protobuf encoded packets from transports, when a packet is fully assembled, it gets passed on to a rpc command handler that calls the relevant hardware peripherals and return a response. 
+
+
+```
+                                                                                                                             
+                                                                                                                             
+                                                                                                                             
+                                                                                                                             
+      ┌──────────────────────┐              ┌─────────────────┐           ┌──────────────┐       ┌────────────────────┐      
+      │                      │              │                 │           │              │       │                    │      
+      │ Transports           │              │                 │ Commands  │              │       │ Peripherals        │      
+      │┌────────────────────┐│              │                 ├──────────►│              │       │ ┌────────────────┐ │      
+      ││                    ││  Bytes       │                 │           │              │ Calls │ │                │ │      
+      ││   Serial           ┼┼─────────────►│   Ingestion     │           │      RPC     ┼───────┼►│  Led           │ │      
+      ││                    ◄┼──────────────┼                 │ Response  │              │       │ │                │ │      
+      ││                    ││              │                 │◄──────────┤              │       │ └────────────────┘ │      
+      │└────────────────────┘│              │                 │           │              │       │                    │      
+      │                      │              │                 │           └──────────────┘       │                    │      
+      │                      │              └─────────────────┘                                  │                    │      
+      │                      │                                                                   │                    │      
+      │                      │                                                                   │                    │      
+      │                      │                                                                   │                    │      
+      │                      │                                                                   │                    │      
+      └──────────────────────┘                                                                   └────────────────────┘      
+                                                                                                                             
+                                                                                                                             
+                                                                                                                             
+                                                                                                                             
+
+```
+
 ## Protocol
 
 The protocol is transport agnostic but a serial implementation is currently provided.
